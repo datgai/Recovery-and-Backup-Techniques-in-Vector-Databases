@@ -15,10 +15,17 @@ services:
       - "8080:8080"
       - "50051:50051"
     environment:
+      QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
       PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      CLUSTER_HOSTNAME: "node1"
+      ENABLE_MODULES: "backup-filesystem"
+      BACKUP_FILESYSTEM_PATH: "/backups"
+      AUTOSCHEMA_ENABLED: "false"
     volumes:
       - weaviate_data:/var/lib/weaviate
+      - ./backups/weaviate:/backups
     restart: unless-stopped
 
   chroma:
@@ -27,7 +34,10 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma/.chroma
+      - chroma_data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
     restart: unless-stopped
 
   pgvector:
@@ -44,6 +54,10 @@ services:
 
 volumes:
   qdrant_data:
+    name: qdrant_data
   weaviate_data:
+    name: weaviate_data
   chroma_data:
+    name: chroma_data
   pgvector_data:
+    name: pgvector_data

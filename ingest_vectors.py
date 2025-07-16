@@ -6,6 +6,7 @@ import weaviate
 import psycopg2
 import requests
 import time
+import subprocess
 
 def load_glove_vectors(path="glove.6B.100d.txt", n=1000):
     glove_vectors = []
@@ -54,14 +55,8 @@ def qdrant_insert():
 # Chroma
 def chroma_insert():
     client = chromadb.HttpClient(host="localhost", port=8000)
-    collection_name = "test_glove"
-    
-    try:
-        client.delete_collection(collection_name)
-    except Exception as e:
-        print(f"Could not delete Chroma collection (might not exist): {e}")
 
-    collection = client.get_or_create_collection(name=collection_name)
+    collection = client.get_or_create_collection(name="test_glove")
     
     # Load GloVe vectors
     glove_vectors, words = load_glove_vectors(n=1000)
@@ -121,7 +116,19 @@ def weaviate_insert():
     client.close() 
 
 # pgvector
+
+def create_pgvector_database_if_missing():
+    try:
+        # Try connecting to the 'vectors' DB directly
+        conn = psycopg2.connect(dbname="vectors", user="postgres", password="password", host="localhost", port=5432)
+        conn.close()
+    except psycopg2.OperationalError:
+        print("🛠 'vectors' database not found. Creating it...")
+        subprocess.run(["createdb", "-U", "postgres", "vectors"], check=True)
+
+
 def pgvector_insert():
+    create_pgvector_database_if_missing()
     conn = None
     cur = None
     try:
