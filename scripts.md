@@ -1,6 +1,7 @@
 # 🔁 CORRECTED MANUAL BACKUP (PowerShell)
 
 ## 🧠 1. **Create folders**
+
 ```powershell
 mkdir backups\qdrant, backups\chroma, backups\weaviate, backups\pgvector
 ```
@@ -8,23 +9,29 @@ mkdir backups\qdrant, backups\chroma, backups\weaviate, backups\pgvector
 ---
 
 ## 🧠 2. **Backup Qdrant**
+
 **Create snapshot:**
+
 ```powershell
 Invoke-RestMethod -Method Post -Uri "http://localhost:6333/collections/test_glove/snapshots"
 ```
-**Copy snapshot file:**
-```powershell
-# List snapshots to get the actual filename
-docker exec qdrant ls /qdrant/snapshots/test_glove
 
-# Copy the snapshot (replace XXXXXXXXX with actual snapshot name)
+**Copy snapshot file:**
+
+```powershell
+docker exec qdrant ls /qdrant/snapshots/test_glove
+```
+
+```powershell
 docker cp qdrant:/qdrant/snapshots/test_glove/test_glove-XXXXXXXXX.snapshot .\backups\qdrant\
 ```
 
 ---
 
 ## 🧠 3. **Backup Chroma**
+
 **Copy volume contents to host:**
+
 ```powershell
 docker run --rm -v chroma_data:/data -v "$(pwd)\backups\chroma:/backup" alpine sh -c "cp -r /data/. /backup/"
 ```
@@ -32,8 +39,10 @@ docker run --rm -v chroma_data:/data -v "$(pwd)\backups\chroma:/backup" alpine s
 ---
 
 ## 🧠 4. **Backup Weaviate**
-```powershell
-Invoke-RestMethod -Method POST -Uri "http://localhost:8080/v1/backups/filesystem" -Body '{"id": "backup_glove"}' -ContentType "application/j```
+
+````powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/v1/backups/filesystem" -Body '{"id": "backup_glove"}' -ContentType "application/json"
+```
 
 ---
 
@@ -42,19 +51,22 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8080/v1/backups/filesystem
 docker exec pgvector pg_dump -U postgres -d vectors -F c -f /tmp/pgvector.dump
 docker cp pgvector:/tmp/pgvector.dump ./backups/pgvector/
 docker exec pgvector rm /tmp/pgvector.dump
-```
+````
 
 ---
 
-# 🔁 CORRECTED MANUAL RESTORE (PowerShell)
+# MANUAL RESTORE (PowerShell)
 
 ## 🧠 1. **Restore Qdrant**
+
 **Copy snapshot back:**
+
 ```powershell
 docker cp .\backups\qdrant\test_glove-XXXXX.snapshot qdrant:/tmp/test_glove-XXXXXXXXX.snapshot
 ```
 
 **Recreate collection (if needed):**
+
 ```powershell
 Invoke-RestMethod -Method PUT -Uri "http://localhost:6333/collections/test_glove" `
   -ContentType "application/json" `
@@ -67,6 +79,7 @@ Invoke-RestMethod -Method PUT -Uri "http://localhost:6333/collections/test_glove
 ```
 
 **Restore from snapshot:**
+
 ```powershell
 Invoke-RestMethod -Method PUT -Uri "http://localhost:6333/collections/test_glove/snapshots/recover" `
     -ContentType "application/json" `
@@ -78,11 +91,9 @@ Invoke-RestMethod -Method PUT -Uri "http://localhost:6333/collections/test_glove
 
 ## 🧠 2. **Restore Chroma**
 
-
 ```powershell
 docker stop chroma
 ```
-
 
 ```powershell
 docker run --rm -v "$(pwd)\backups\chroma:/backup" -v chroma_data:/data alpine sh -c "cp -r /backup/. /data/ && chown -R 1000:1000 /data"
@@ -95,6 +106,7 @@ docker start chroma
 ---
 
 ## 🧠 3. **Restore Weaviate**
+
 ```powershell
 Invoke-RestMethod -Method POST -Uri "http://localhost:8080/v1/backups/filesystem/backup_glove/restore" -Body '{"id": "backup_glove"}' -ContentType "application/json"
 
@@ -103,6 +115,7 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8080/v1/backups/filesystem
 ---
 
 ## 🧠 4. **Restore pgvector**
+
 ```powershell
 docker exec -e PGPASSWORD=password pgvector dropdb -U postgres vectors
 docker exec -e PGPASSWORD=password pgvector createdb -U postgres vectors

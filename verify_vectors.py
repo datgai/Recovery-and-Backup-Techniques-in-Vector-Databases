@@ -1,8 +1,8 @@
 import numpy as np
 from qdrant_client import QdrantClient
 import chromadb
-import weaviate
 import psycopg2
+import weaviate
 
 def load_glove_vectors(path="glove.6B.100d.txt", n=1000):
     glove_vectors = []
@@ -61,10 +61,10 @@ def verify_chroma():
 # Weaviate Verification
 # -------------------
 def verify_weaviate():
-    import weaviate
+
+    glove_vectors, words = load_glove_vectors(n=1000)
 
     client = weaviate.connect_to_local(host="localhost", port=8080, grpc_port=50051)
-
     collection = client.collections.get("VectorDocGlove")
 
     correct = 0
@@ -74,17 +74,19 @@ def verify_weaviate():
         result = collection.query.near_vector(
             near_vector=vec.tolist(),
             limit=1,
-            return_properties=["word"],
-            include_vector_distance=True 
+            return_properties=["word"]  
         )
 
-        if result.objects and result.objects[0].properties["word"] == words[i]:
-            correct += 1
+        if result.objects:
+            predicted_word = result.objects[0].properties["word"]
+            if predicted_word == words[i]:
+                correct += 1
 
     accuracy = correct / total * 100
     print(f"✅ Weaviate accuracy: {correct}/{total} = {accuracy:.2f}%")
 
-    client.close()
+    client.close()  
+
 
 
 # -------------------
